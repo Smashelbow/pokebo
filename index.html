@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <title>Babylon.js sample code</title>
+
+    <!-- Babylon.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+    <script src="https://preview.babylonjs.com/ammo.js"></script>
+    <script src="https://preview.babylonjs.com/cannon.js"></script>
+    <script src="https://preview.babylonjs.com/Oimo.js"></script>
+    <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+    <script src="https://preview.babylonjs.com/babylon.js"></script>
+    <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+    <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+    <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+    <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+    <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+    <style>
+        html,
+        body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var engine = new BABYLON.Engine(canvas, true);
+
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function () { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, disableWebGL2Support: false }); };
+        engine.setHardwareScalingLevel(0.4);
+
+        const createScene = () => {
+            const scene = new BABYLON.Scene(engine);
+
+            //const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 3, new BABYLON.Vector3(0, 0, 0));
+            //camera.attachControl(canvas, true);
+
+            //hdr环境贴图
+            var hdrTexture = new BABYLON.CubeTexture.CreateFromPrefilteredData("hdr/environment.env", scene);
+            //hdrTexture.level = 0.5
+            scene.environmentTexture = hdrTexture
+
+            //创建预设天空盒就能让物体受到环境贴图的光照
+            var hdrSkybox = scene.createDefaultSkybox(hdrTexture, true);
+
+            var hdrSkyboxMaterial = hdrSkybox.material
+            hdrSkyboxMaterial.backFaceCulling = false;
+            //hdrSkyboxMaterial.reflectionTexture = hdrTexture
+            //hdrSkyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.EXPLICIT_MODE;
+            //hdrSkyboxMaterial.microSurface = 1.0;
+            //hdrSkyboxMaterial.cameraExposure = 1;
+            //hdrSkyboxMaterial.cameraContrast = 0;
+            hdrSkyboxMaterial.disableLighting = true;
+            hdrSkyboxMaterial.roughness = 0.15;
+            //hdrSkybox.material = hdrSkyboxMaterial;
+            hdrSkybox.infiniteDistance = true;//不可接近
+
+
+
+            //const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0));
+            BABYLON.SceneLoader.Append("mesh/", "changjing.gltf", scene, function (scene) {
+                //Create a default arc rotate camera and light.
+                //scene.createDefaultCameraOrLight(true, false, false);
+
+                //从导入的模型文件中获取灯光并声明
+                var mainLight = scene.getLightByName("mainLight");
+                var frontLight = scene.getLightByName("frontLight");
+                //mainLight.intensity = 30;//灯光强度
+
+                //mainLight.excludedMeshes = [cube];//排除自发光物体使其免受灯光影响
+
+                //从导入的模型文件中获取模型并声明
+                var changjing = scene.getMeshByName("changjing");
+                var changjingMat = scene.getMaterialByName("changjingMat");//从导入的模型文件中获取材质并声明
+                changjing.material = changjingMat;
+                changjingMat.backFaceCulling = true;//忽略背面，避免贴近的面闪烁
+                changjingMat.metallic = 0;//金属度
+                changjingMat.roughness = 1;//糙度
+                changjingMat.directIntensity = 1;//受光程度
+                changjingMat.environmentIntensity = 0.7;//受环境贴图影响的程度
+
+                var mainCamera = new BABYLON.ArcRotateCamera("Camera", 5, -5, 5, new BABYLON.Vector3(0, 0, 0), scene);
+                mainCamera.setPosition(new BABYLON.Vector3(0, 0.7, 2));
+
+                mainCamera.wheelPrecision = 20
+
+                var mainCameraX = mainCamera.position.x * -1
+                var mainCameraPosition = new BABYLON.Vector3(mainCameraX, mainCamera.position.y, mainCamera.position.z)
+
+                //让精灵球的自发光贴图流动起来，面朝镜头
+                scene.registerBeforeRender(function () {
+
+                    mainCameraX = mainCamera.position.x * -1
+                    mainCameraPosition = new BABYLON.Vector3(mainCameraX, mainCamera.position.y, mainCamera.position.z)
+                    pokeboMat3.emissiveTexture.uOffset += 0.01;
+
+                })
+
+
+                //从导入的模型文件中获取相机并声明
+                //var mainCamera = scene.getCameraByName("mainCamera");
+                mainCamera.minZ = 0.1;//裁剪起点
+                mainCamera.maxZ = 80;//裁剪终点
+                mainCamera.fov = 1;//相当于广角程度，小于0.7很容易会看到相近的面闪烁，面闪烁好像也跟maxZ有关。maxZ大一点就不闪
+                //canvas.detachControl//不知道是不是这样写
+                mainCamera.attachControl(canvas, true);//相机控制
+                //mainCamera.inputs.clear();//清除控制组件，固定相机
+                scene.activeCamera = mainCamera;//激活选定相机
+
+                //从导入的模型文件中获取父级空物体并声明
+                var pokebo = scene.getTransformNodeByName("pokebo");
+                pokebo.reIntegrateRotationIntoRotationQuaternion = true//这个影响到旋转的工作方式，暂时还搞不懂怎么用
+
+                //导入模型和材质
+                var pokebo1 = scene.getMeshByName("pokebo1")
+                var pokebo2 = scene.getMeshByName("pokebo2")
+                var pokebo3 = scene.getMeshByName("pokebo3")
+                var pokebo4 = scene.getMeshByName("pokebo4")
+                var pokebo5 = scene.getMeshByName("pokebo5")
+
+                var pokeboMat1 = scene.getMaterialByName("pokeboMat1")
+                var pokeboMat2 = scene.getMaterialByName("pokeboMat2")
+                var pokeboMat3 = scene.getMaterialByName("pokeboMat3")
+
+                //赋予材质
+                pokebo1.material = pokeboMat1
+                pokebo2.material = pokeboMat2
+                pokebo3.material = pokeboMat3
+
+                //这是一个不可见的点击热区模型
+                var pokeboHot = scene.getMeshByName("pokeboHot")
+                pokeboHot.visibility = 0
+
+
+
+
+
+                
+         
+
+
+
+
+                //pokeboMat2.metallic = 1
+                //pokeboMat2.roughness = 1
+                pokeboMat2.indexOfRefraction = 2.6//感觉是环境染色程度，高数值更多环境色，低数值更多固有色
+                pokeboMat2.metallicF0Factor = 1.4//跟indexOfRefraction差不多感觉，不太清楚区别
+
+                //导入两个动画
+                var pokeboOpenAnimation = scene.getAnimationGroupByName("pokeboOpen")
+                pokeboOpenAnimation.loopAnimation = false
+
+                var pokeboClossAnimation = scene.getAnimationGroupByName("pokeboCloss")
+                pokeboClossAnimation.loopAnimation = false
+
+                //选择一开始就要用的动画
+                pokeboOpenAnimation.stop()
+                
+
+                //创建旋转中心（父级空物体）
+                //var pokeboRotator = new BABYLON.TransformNode("pokeboRotator");
+
+                //var mainCameraX = mainCamera.position.x*-1
+                //var mainCameraPosition = new BABYLON.Vector3(mainCameraX,mainCamera.position.y,mainCamera.position.z)
+
+                //pokebo.setParent(pokeboRotator);
+
+
+                                
+                //尝试徒手写粒子
+                //导入粒子特效模型
+                var pep = scene.getMeshByName("pep")
+                var pepMat = scene.getMaterialByName("pepMat")
+                //pepMat.albedoTexture.hasAlpha =true //颜色贴图包含alpha
+                //pepMat.useAlphaFromAlbedoTexture =true //应用颜色贴图的alpha
+                pep.visibility = 0
+/*
+                pepMat.alphaMode = BABYLON.Engine.ALPHA_COMBINE
+
+                pepMat.emissiveColor = new BABYLON.Color3(0.9, 0.9, 0.9)
+                pepMat.emissiveTexture = new BABYLON.Texture("meshes/textures/pepColorTex.jpg", scene)
+                pepMat.albedoTexture = new BABYLON.Texture("meshes/textures/pepColorTex.jpg", scene)
+                pepMat.opacityTexture = new BABYLON.Texture("meshes/textures/pepAlphaTex.png", scene)
+
+                pep.material = pepMat
+                pep.position.y = 0.02
+                
+
+                //尝试程序动画
+
+                //帧率
+                const frameRate = 30;
+
+                //创建y轴移动动画
+                var ySlide = new BABYLON.Animation("ySlide", "position.y", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+
+                const keyFrames = [];
+
+                keyFrames.push({
+                    frame: 0,
+                    value: 0.2
+                });
+
+
+
+                keyFrames.push({
+                    frame: 5 * frameRate,
+                    value: 1
+                });
+
+
+                ySlide.setKeys(keyFrames);
+
+                //创建可见度动画
+                var visibilitySlide = new BABYLON.Animation("visibilitySlide", "visibility", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+
+                var keys = [];
+
+                keys.push({
+                    frame: 0,
+                    value: 1
+                });
+
+
+
+                keys.push({
+                    frame: 5 * frameRate,
+                    value: 0
+
+                });
+
+                visibilitySlide.setKeys(keys);
+
+
+                //将动画合并到一个组进行控制
+                var pepSpawn = new BABYLON.AnimationGroup("pepSpawn");
+
+                pepSpawn.addTargetedAnimation(ySlide, pep);
+                pepSpawn.addTargetedAnimation(visibilitySlide, pep);
+
+                //pepSpawn.normalize(0, 5*keyFrames);//统一帧
+
+
+                pepSpawn.stop(false)
+                */
+
+
+
+                // 粒子发射器（任何物体都可以）
+                //var emitter0 = BABYLON.Mesh.CreateBox("emitter0", 0.1, scene);
+                //emitter0.isVisible = false;
+
+                // 粒子系统1
+                var particleSystem = new BABYLON.ParticleSystem("particles", 1000, scene);
+                particleSystem.particleTexture = new BABYLON.Texture("mesh/textures/pep.png", scene);
+                particleSystem.minAngularSpeed = 0.03
+                particleSystem.maxAngularSpeed = 0.05
+                particleSystem.maxSize = 0.3;
+                particleSystem.minSize = 0.1;
+
+                particleSystem.minLifeTime = 2.5;
+                particleSystem.maxLifeTime = 4;
+                particleSystem.minEmitPower = 0.05;
+                particleSystem.maxEmitPower = 0.1;
+                particleSystem.emitter = pokebo5;
+                particleSystem.emitRate = 7;
+                particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+                particleSystem.minEmitBox = new BABYLON.Vector3(-0.2, 0.2, -0.2);
+                particleSystem.maxEmitBox = new BABYLON.Vector3(0.2, 0.2, 0.15);
+                particleSystem.direction1 = new BABYLON.Vector3(-1, 1, -1);
+                particleSystem.direction2 = new BABYLON.Vector3(1, 1, 0);
+                particleSystem.color1 = new BABYLON.Color3(1, 0,0.5);
+                particleSystem.color2 = new BABYLON.Color3(0, 1, 1);
+                particleSystem.gravity = new BABYLON.Vector3(0, 0.03, 0);
+
+                //精灵球旋转动画
+                var pokeboRoting = function (rotOffset) {
+                    //pepSpawn.stop(false)
+                    //pep.position.y = 0.02
+                    scene.registerBeforeRender(function () {
+
+                        pokebo.rotation.y = rotOffset;
+                        //rotOffset += 0.01;
+
+
+                    });
+                    pokeboOpenAnimation.stop(0)
+                    particleSystem.stop();
+                }
+
+                pokeboRoting(0.01)
+
+
+
+
+                //精灵球静止
+
+                var pokeboLookAtCamera = function () {
+
+
+                    scene.registerBeforeRender(function () {
+                        pokebo.rotation.y = 0
+                        //pep.lookAt(mainCameraPosition)
+
+                    });
+                    //pep.visibility = 1
+                    //pepSpawn.play(true)
+
+
+                    particleSystem.start();
+
+                    pokebo.lookAt(new BABYLON.Vector3(mainCamera.position.x * -1, 0, mainCamera.position.z))
+                    pokeboClossAnimation.stop()
+                    pokeboOpenAnimation.play(0)
+
+
+                }
+
+                //pokeboLookAtCamera()
+
+                //pokebo.rotation.set(rot,rot,rot)
+
+                //pokebo1.position = new BABYLON.Vector3(1, 2, 3);
+
+                //pokebo.position.x = 2; //(2, 2, 1)
+                //pokebo.position.y = 3; //(2, 3, 1)
+                //pokebo.position.z = 4; //(2, 3, 4)
+                //var scale =4
+                //pokebo.scaling.set(scale, scale, scale);
+
+
+
+                //边缘光泽，可能还有参数需要调，暂时用不了。可能要hdrSkyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+                pokeboMat1.sheen.isEnable = false; pokeboMat2.sheen.isEnable = true; pokeboMat3.sheen.isEnable = true;
+
+                pokeboMat1.sheen.intensity = 0.001; pokeboMat2.sheen.intensity = 0.3; pokeboMat3.sheen.intensity = 0.3;
+
+                pokeboMat1.sheen.roughness = 0.5; pokeboMat2.sheen.roughness = 0.5; pokeboMat3.sheen.roughness = 0.5;
+
+                //pokeboMat1.clearCoat.intensity = 1; pokeboMat2.clearCoat.intensity = 1; pokeboMat3.clearCoat.intensity = 1;//清漆
+
+
+
+
+
+
+
+                //scene.debugLayer.select(pbr, "SHEEN");
+
+
+
+                scene.debugLayer.show({ showExplorer: true });//传说中的inspector调试工具
+
+                pokeboMat1.environmentIntensity = 1.2;//受环境贴图影响的程度
+                pokeboMat2.environmentIntensity = 1.2;//受环境贴图影响的程度
+                pokeboMat3.environmentIntensity = 1.6;//受环境贴图影响的程度
+
+                // Shadow
+                mainLight.shadowMinZ = 0.1;
+                mainLight.shadowMaxZ = 80.0;//这两个可能影响灯光衰减和投影模糊，但是暂时没看到有效果，可能点光没有衰减
+
+
+
+                var shadowGenerator = new BABYLON.ShadowGenerator(4096, mainLight);
+                shadowGenerator.getShadowMap().renderList.push(changjing, pokebo1, pokebo2, pokebo3);
+                shadowGenerator.setDarkness(0.2);
+                shadowGenerator.filter = BABYLON.ShadowGenerator.FILTER_PCSS;//应该有模糊投影才对，但是没有
+                // shadowGenerator.usePoissonSampling = true;
+                //shadowGenerator.useContactHardeningShadow = true;
+                shadowGenerator.usePercentageCloserFiltering = true;//应该有模糊投影才对，但是没有
+                shadowGenerator.bias = 0.0001
+
+                //shadowGenerator.blurBoxOffset = 0.01
+
+                changjing.receiveShadows = true;
+                pokebo1.receiveShadows = true;
+                pokebo2.receiveShadows = true;
+                pokebo3.receiveShadows = true;
+
+
+
+
+
+                // Create SSAO and configure all properties (for the example)
+                var ssaoRatio = {
+                    ssaoRatio: 2, // Ratio of the SSAO post-process, in a lower resolution
+                    combineRatio: 1 // Ratio of the combine post-process (combines the SSAO and the scene)
+                };
+                var ssao = new BABYLON.SSAORenderingPipeline("ssao", scene, ssaoRatio);
+                ssao.fallOff = 0.0001;
+                ssao.area = 1;
+                ssao.radius = 0.002;
+                ssao.totalStrength = 0.4;
+                ssao.base = 0.3;
+
+                //ssao.expensiveBlur=true;
+
+                // Attach camera to the SSAO render pipeline
+                scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline("ssao", mainCamera);
+
+                var ssao = new BABYLON.SSAORenderingPipeline("ssao", scene, ssaoRatio);
+                ssao.fallOff = 0.00001;
+                ssao.area = 1;
+                ssao.radius = 0.02;
+                ssao.totalStrength = 0.2;
+                ssao.base = 0.1;
+
+                /*
+                   // Manage SSAO
+                   var isAttached = true;
+                    window.addEventListener("keydown", function (evt) {
+                    // draw SSAO with scene when pressed "1"
+                    if (evt.keyCode === 49) {
+                        if (!isAttached) {
+                            isAttached = true;
+                            scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline("ssao", mainCamera);
+                        }
+                        scene.postProcessRenderPipelineManager.enableEffectInPipeline("ssao", ssao.SSAOCombineRenderEffect, mainCamera);
+                    }
+                        // draw without SSAO when pressed "2"
+                    else if (evt.keyCode === 50) {
+                        isAttached = false;
+                        scene.postProcessRenderPipelineManager.detachCamerasFromRenderPipeline("ssao", mainCamera);
+                    }
+                        // draw only SSAO when pressed "2"
+                    else if (evt.keyCode === 51) {
+                        if (!isAttached) {
+                            isAttached = true;
+                            scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline("ssao", mainCamera);
+                        }
+                        scene.postProcessRenderPipelineManager.disableEffectInPipeline("ssao", ssao.SSAOCombineRenderEffect, mainCamera);
+                    }
+                    });
+                */
+
+
+                //辉光层
+                var gl = new BABYLON.GlowLayer("gl", scene, {
+
+                    mainTextureFixedSize: 128,//贴图大小
+                    blurKernelSize: 32 //模糊大小
+
+
+                })
+                gl.intensity = 0.8
+                //gl.addExcludedMesh(pep)
+
+                //高亮描边层
+                var hl = new BABYLON.HighlightLayer("hl", scene)
+                hl.outerGlow = false
+                hl.blurHorizontalSize = 0.2
+                hl.blurVerticalSize = 0.2
+                hl.addMesh(pokebo1, new BABYLON.Color3(0.8, 0.8, 0.8))
+                hl.addMesh(pokebo2, new BABYLON.Color3(0.8, 0.8, 0.8))
+                hl.addMesh(pokebo3, new BABYLON.Color3(0.8, 0.8, 0.8))
+
+                hl.removeMesh(pokebo1)
+                hl.removeMesh(pokebo2)
+                hl.removeMesh(pokebo3)
+
+
+                //想做慢慢关灯，不会做
+                var pokeboLightDown = function () {
+
+
+
+                }
+
+
+                //让精灵球拥有按钮效果
+                var pokeboLighUpAction = new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, function () {
+
+                    pokeboMat3.emissiveColor = new BABYLON.Color3(0, 0, 0)
+                    pokeboRoting(0.01)
+                    pokeboOpenAnimation.stop(0)
+                    pokeboClossAnimation.play(0)
+
+                })
+
+                pokeboHot.actionManager = new BABYLON.ActionManager(scene);
+                pokeboHot.actionManager.registerAction(pokeboLighUpAction)
+                new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, function () {
+
+                    pokeboMat3.emissiveColor = new BABYLON.Color3(0, 0, 0)
+                    pokeboRoting(0.01)
+                    pokeboOpenAnimation.stop(0)
+                    pokeboClossAnimation.play(0)
+                    //第二次点击触发关闭精灵球动画
+
+
+                }).then(new BABYLON.CombineAction(BABYLON.ActionManager.NothingTrigger, [ // Then is used to add a child action used alternatively with the root action. 
+                    pokeboLighUpAction,                                                 // First click: root action. Second click: child action. Third click: going back to root action and so on...   
+                    new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.NothingTrigger, function () {
+
+                        pokeboMat3.emissiveColor = new BABYLON.Color3(0, 0, 0)
+                        pokeboRoting(0.01)
+                        pokeboOpenAnimation.stop(0)
+                        pokeboClossAnimation.play(0)
+
+                    })])
+                )
+
+                //感觉中间这段代码里面运行的东西改了也没有任何变化，但是整段代码删了就会不行，还没弄懂
+
+                pokeboHot.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.NothingTrigger, function () {
+
+                    pokeboMat3.emissiveColor = new BABYLON.Color3(0, 0, 0)
+                    pokeboRoting(0.01)
+                    pokeboOpenAnimation.stop(0)
+                    pokeboClossAnimation.play(0)
+
+                })).then(new BABYLON.DoNothingAction());
+
+                pokeboHot.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, function () {
+
+                    pokeboMat3.emissiveColor = new BABYLON.Color3(0.5, 0.5, 0.5)
+                    pokeboLookAtCamera()
+                    pokeboClossAnimation.stop(0)
+                    pokeboOpenAnimation.play(0)
+                    //第一次点击触发打开精灵球动画
+
+                })).then(new BABYLON.SetStateAction(BABYLON.ActionManager.OnPickTrigger, pokebo3.material.emissiveColor, BABYLON.Color3(0.5, 0.5, 0.5)));
+
+
+
+
+
+
+
+                //精灵球高亮    
+                var pokeboLightOn = function () {
+                    pokeboMat1.environmentIntensity = pokeboMat1.environmentIntensity + 0.4
+                    pokeboMat2.environmentIntensity = pokeboMat2.environmentIntensity + 0.4
+                    pokeboMat3.environmentIntensity = pokeboMat3.environmentIntensity + 0.4
+
+                    //与半透明贴图效果重叠时有冲突
+                    // hl.addMesh(pokebo1, new BABYLON.Color3(0.6, 0.6, 0.6))
+                    // hl.addMesh(pokebo2, new BABYLON.Color3(0.6, 0.6, 0.6))
+                    // hl.addMesh(pokebo3, new BABYLON.Color3(0.6, 0.6, 0.6))
+
+                    //pokebo3.receiveShadows = false;
+
+                }
+
+                //精灵球取消高亮函数    
+                var pokeboLightOff = function () {
+                    pokeboMat1.environmentIntensity = pokeboMat1.environmentIntensity - 0.4
+                    pokeboMat2.environmentIntensity = pokeboMat2.environmentIntensity - 0.4
+                    pokeboMat3.environmentIntensity = pokeboMat3.environmentIntensity - 0.4
+                    // hl.removeMesh(pokebo1)
+                    // hl.removeMesh(pokebo2)
+                    //  hl.removeMesh(pokebo3)
+                    //pokebo3.receiveShadows = true;
+
+                }
+
+                //精灵球鼠标触碰高亮显示
+                pokeboHot.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, function () {
+                    pokeboLightOff()
+
+                }));
+                pokeboHot.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, function () {
+                    pokeboLightOn()
+
+                }))
+
+
+
+                
+
+
+
+
+
+                /*
+                                //屏幕空间反射，需要高光贴图，比较占性能。
+                                var ssr = new BABYLON.ScreenSpaceReflectionPostProcess("ssr", scene, 1.0, mainCamera);
+                                ssr.reflectionSamples = 32; // Low quality.
+                                ssr.strength = 1; // Set default strength of reflections.
+                                ssr.reflectionSpecularFalloffExponent = 0.1; // Attenuate the reflections a little bit. (typically in interval [1, 3])
+                */
+                //抗锯齿，感觉没效果
+                var defaultPipeline = new BABYLON.DefaultRenderingPipeline("default", false, scene, [scene.activeCamera]);
+                defaultPipeline.fxaaEnabled = true;//抗锯齿
+                defaultPipeline.imageProcessing.contrast = 1.0;//全局对比度
+                defaultPipeline.samples = 1;//不知道为什么只能填1，0都不行
+                new BABYLON.FxaaPostProcess("fxaa", 2.0, mainCamera);//双重抗锯齿，感觉有效果了
+
+                // The default camera looks at the back of the asset.
+                // Rotate the camera by 180 degrees to the front of the asset.
+                //scene.activeCamera.alpha += Math.PI;
+            });
+
+
+
+
+
+
+
+            return scene;
+        }
+        window.initFunction = async function () {
+            var asyncEngineCreation = async function () {
+                try {
+                    return createDefaultEngine();
+                } catch (e) {
+                    console.log("the available createEngine function failed. Creating the default engine instead");
+                    return createDefaultEngine();
+                }
+            }
+
+            window.engine = await asyncEngineCreation();
+            if (!engine) throw 'engine should not be null.';
+            window.scene = createScene();
+        };
+        initFunction().then(() => {
+            sceneToRender = scene
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+
+</html>
